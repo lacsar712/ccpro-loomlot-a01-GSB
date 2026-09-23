@@ -124,18 +124,22 @@
         <th>布料 kg</th>
         <th>开始</th>
         <th>操作员</th>
+        <th>静置</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       {#each rows as row}
-        <tr>
+        <tr class:resting={row.resting}>
           <td>{row.id}</td>
           <td>{vatLabel(row.vatId)}</td>
           <td>{row.recipeName}</td>
           <td>{row.fabricKg}</td>
           <td>{new Date(row.startedAt).toLocaleString()}</td>
           <td>{row.operatorName}</td>
+          <td>
+            {#if row.resting}<span class="badge">静置中</span>{:else}<span class="idle">—</span>{/if}
+          </td>
           <td class="row-actions">
             <button class="btn ghost small" type="button" on:click={() => startEdit(row)}>编辑</button>
             <button class="btn danger small" type="button" on:click={() => remove(row.id)}>删除</button>
@@ -145,3 +149,24 @@
     </tbody>
   </table>
 </div>
+
+<style>
+  .resting {
+    background: rgba(107, 92, 231, 0.08);
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 3px;
+    background: rgba(107, 92, 231, 0.25);
+    border: 1px solid rgba(107, 92, 231, 0.5);
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .idle {
+    color: var(--indigo-mist, #9b93c7);
+    opacity: 0.6;
+  }
+</style>

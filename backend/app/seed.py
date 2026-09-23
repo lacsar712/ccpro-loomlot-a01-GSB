@@ -4,7 +4,9 @@ from app.auth import hash_password
 from app.database import SessionLocal
 from app.models.dye_house import DyeHouse
 from app.models.dye_lot import DyeLot
+from app.models.fabric_weight import FabricWeight
 from app.models.fastness_check import FastnessCheck
+from app.models.fixation_dwell import FixationDwell
 from app.models.user import User
 from app.models.vat import Vat
 
@@ -97,6 +99,43 @@ def seed() -> None:
             # lot2 was on ready vat historically — keep v3 ready for demo create path
             # Re-set: creating lot2 would have set dyeing; for seed we leave one dyeing + one ready
             v3.status = "ready"
+            db.add_all(
+                [
+                    FabricWeight(
+                        dye_lot_id=lot1.id,
+                        weighed_at=now - timedelta(hours=2),
+                        weight_kg=42.0,
+                        recorder_name="染程操作员",
+                    ),
+                    FabricWeight(
+                        dye_lot_id=lot2.id,
+                        weighed_at=now - timedelta(days=2, hours=1),
+                        weight_kg=17.8,
+                        recorder_name="染坊主管",
+                    ),
+                ]
+            )
+            db.flush()
+            db.add_all(
+                [
+                    # lot1 一条进行中的固色静置：未满窗，色牢度登记被拦
+                    FixationDwell(
+                        dye_lot_id=lot1.id,
+                        started_at=now - timedelta(minutes=40),
+                        planned_end_at=now + timedelta(hours=2, minutes=20),
+                        actual_end_at=None,
+                        duty_officer="染程操作员",
+                    ),
+                    # lot2 一条已结束静置，供历史展示
+                    FixationDwell(
+                        dye_lot_id=lot2.id,
+                        started_at=now - timedelta(days=2),
+                        planned_end_at=now - timedelta(days=2) + timedelta(hours=4),
+                        actual_end_at=now - timedelta(days=2) + timedelta(hours=3, minutes=50),
+                        duty_officer="染坊主管",
+                    ),
+                ]
+            )
             db.add_all(
                 [
                     FastnessCheck(

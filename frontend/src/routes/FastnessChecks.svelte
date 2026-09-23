@@ -19,13 +19,21 @@
     error = '';
     try {
       [lots, rows] = await Promise.all([api('/dye-lots'), api('/fastness-checks')]);
-      if (!form.dyeLotId && lots.length) form.dyeLotId = String(lots[0].id);
+      // 默认选中第一个未在静置的染程；静置中的染程不得抽检
+      const firstAvailable = lots.find((l) => !l.resting);
+      if (!form.dyeLotId) {
+        form.dyeLotId = String((firstAvailable || lots[0] || { id: '' }).id);
+      }
     } catch (e) {
       error = e.message;
     }
   }
 
   onMount(load);
+
+  $: selectedLot = lots.find((x) => String(x.id) === form.dyeLotId) || null;
+  // 仅拦截新建；编辑既有抽检不受静置状态影响
+  $: blocked = !!selectedLot?.resting && !editing;
 
   function lotLabel(id) {
     const lot = lots.find((x) => x.id === id);
@@ -34,6 +42,10 @@
 
   async function save() {
     error = '';
+    if (blocked) {
+      error = '该染程固色静置未满窗（仍在进行中），禁止登记色牢度抽检；请先在「固色静置」结束静置。';
+      return;
+    }
     try {
       const body = {
         dyeLotId: Number(form.dyeLotId),
@@ -85,7 +97,13 @@
 </script>
 
 <h1 class="page-title">色牢度抽检</h1>
-<p class="page-sub">耐洗 1–5 级；摩擦牢度须大于 0；记录检测温度。</p>
+<p class="page-sub">耐洗 1–5 级；摩擦牢度须大于 0；记录检测温度。固色静置未满窗的染程禁止抽检。</p>
+
+{#if blocked}
+  <p class="block-banner">
+    染程「{selectedLot.recipeName}」固色静置进行中，未满窗，禁止登记抽检；结束静置后自动恢复。
+  </p>
+{/if}
 
 <div class="panel" style="margin-bottom:1rem;">
   <div class="form-grid">
@@ -93,7 +111,9 @@
       >染程
       <select bind:value={form.dyeLotId}>
         {#each lots as lot}
-          <option value={String(lot.id)}>{lot.recipeName} · {lot.fabricKg}kg</option>
+          <option value={String(lot.id)} disabled={lot.resting}>
+            {lot.recipeName} · {lot.fabricKg}kg{lot.resting ? ' · 静置中（禁检）' : ''}
+          </option>
         {/each}
       </select>
     </label>
@@ -104,7 +124,9 @@
     <label>备注 <input bind:value={form.notes} /></label>
   </div>
   <div class="toolbar">
-    <button class="btn" type="button" on:click={save}>{editing ? '保存修改' : '登记抽检'}</button>
+    <button class="btn" type="button" disabled={blocked} on:click={save}>
+      {editing ? '保存修改' : '登记抽检'}
+    </button>
     {#if editing}
       <button class="btn ghost" type="button" on:click={() => (editing = null)}>取消</button>
     {/if}
@@ -145,3 +167,21 @@
     </tbody>
   </table>
 </div>
+
+<style>
+  .block-banner {
+    margin: 0 0 1rem;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid var(--danger);
+    border-radius: 3px;
+    background: rgba(224, 81, 81, 0.12);
+    color: var(--danger);
+    font-size: 0.88rem;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: none;
+  }
+</style>

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user
 from app.database import get_db
 from app.models.dye_lot import DyeLot
+from app.models.fixation_dwell import FixationDwell
 from app.models.user import User
 from app.models.vat import Vat
 from app.schemas.dye_lot import DyeLotCreate, DyeLotUpdate, DyeLotOut
@@ -14,6 +15,11 @@ from app.schemas.dye_lot import DyeLotCreate, DyeLotUpdate, DyeLotOut
 router = APIRouter(prefix="/api/dye-lots", tags=["dye-lots"])
 
 ALLOWED_VAT_STATUSES = {"ready", "dyeing"}
+
+
+def _to_out(lot: DyeLot, resting_ids: set) -> DyeLotOut:
+    out = DyeLotOut.model_validate(lot)
+    return out.model_copy(update={"resting": lot.id in resting_ids})
 
 
 @router.get("", response_model=List[DyeLotOut])
@@ -25,7 +31,9 @@ def list_dye_lots(
     q = db.query(DyeLot)
     if vat_id is not None:
         q = q.filter(DyeLot.vat_id == vat_id)
-    return q.order_by(DyeLot.id.desc()).all()
+    lots = q.order_by(DyeLot.id.desc()).all()
+    resting_ids = FixationDwell.active_lot_ids(db, [lot.id for lot in lots])
+    return [_to_out(lot, resting_ids) for lot in lots]
 
 
 @router.post("", response_model=DyeLotOut, status_code=status.HTTP_201_CREATED)
@@ -53,7 +61,7 @@ def create_dye_lot(
     db.add(item)
     db.commit()
     db.refresh(item)
-    return item
+    return _to_out(item, set())
 
 
 @router.get("/{lot_id}", response_model=DyeLotOut)
@@ -65,7 +73,7 @@ def get_dye_lot(
     item = db.query(DyeLot).filter(DyeLot.id == lot_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="染程不存在")
-    return item
+    return _to_out(item, FixationDwell.active_lot_ids(db, [item.id]))
 
 
 @router.put("/{lot_id}", response_model=DyeLotOut)
@@ -93,7 +101,7 @@ def update_dye_lot(
         setattr(item, k, v)
     db.commit()
     db.refresh(item)
-    return item
+    return _to_out(item, FixationDwell.active_lot_ids(db, [item.id]))
 
 
 @router.delete("/{lot_id}", status_code=status.HTTP_204_NO_CONTENT)

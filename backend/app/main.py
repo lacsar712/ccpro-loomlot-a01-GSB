@@ -8,6 +8,8 @@ from app.routers import (
     dye_houses,
     vats,
     dye_lots,
+    fixation_dwells,
+    fabric_weights,
     fastness_checks,
     dashboard,
 )
@@ -39,6 +41,8 @@ app.include_router(auth.router)
 app.include_router(dye_houses.router)
 app.include_router(vats.router)
 app.include_router(dye_lots.router)
+app.include_router(fixation_dwells.router)
+app.include_router(fabric_weights.router)
 app.include_router(fastness_checks.router)
 app.include_router(dashboard.router)
 

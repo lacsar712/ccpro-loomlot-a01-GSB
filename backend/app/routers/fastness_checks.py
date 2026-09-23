@@ -7,6 +7,7 @@ from app.auth import get_current_user
 from app.database import get_db
 from app.models.dye_lot import DyeLot
 from app.models.fastness_check import FastnessCheck
+from app.models.fixation_dwell import FixationDwell
 from app.models.user import User
 from app.schemas.fastness_check import FastnessCheckCreate, FastnessCheckUpdate, FastnessCheckOut
 
@@ -34,6 +35,12 @@ def create_check(
     lot = db.query(DyeLot).filter(DyeLot.id == payload.dye_lot_id).first()
     if not lot:
         raise HTTPException(status_code=400, detail="染程不存在")
+    # 静置未满窗（存在进行中静置）禁止登记色牢度抽检；与静置新建共用同一查询
+    if FixationDwell.active_query(db, payload.dye_lot_id).first():
+        raise HTTPException(
+            status_code=409,
+            detail="该染程固色静置未满窗（仍在进行中），禁止登记色牢度抽检",
+        )
     item = FastnessCheck(
         dye_lot_id=payload.dye_lot_id,
         checked_at=payload.checked_at,
