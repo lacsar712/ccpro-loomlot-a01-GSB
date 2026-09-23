@@ -4,7 +4,9 @@ from app.auth import hash_password
 from app.database import SessionLocal
 from app.models.dye_house import DyeHouse
 from app.models.dye_lot import DyeLot
+from app.models.fabric_weight import FabricWeightRecord
 from app.models.fastness_check import FastnessCheck
+from app.models.fixation_window import FixationWindow
 from app.models.user import User
 from app.models.vat import Vat
 
@@ -117,6 +119,25 @@ def seed() -> None:
                     ),
                 ]
             )
+            db.flush()
+
+            # lot1 布重对账记录（结束静置的前置条件）
+            weight1 = FabricWeightRecord(
+                dye_lot_id=lot1.id,
+                weighed_at=now - timedelta(minutes=20),
+                weight_kg=42.5,
+                recorder_name="染程操作员",
+                notes="出缸湿重，与开缸布重一致",
+            )
+            # lot1 一条进行中的固色静置：实际结束为空，计划结束仍在未来（未满窗）
+            active_window = FixationWindow(
+                dye_lot_id=lot1.id,
+                start_at=now - timedelta(minutes=45),
+                planned_end_at=now + timedelta(hours=2, minutes=15),
+                actual_end_at=None,
+                duty_officer="染程操作员",
+            )
+            db.add_all([weight1, active_window])
             db.commit()
             print("Seed data inserted.")
         else:

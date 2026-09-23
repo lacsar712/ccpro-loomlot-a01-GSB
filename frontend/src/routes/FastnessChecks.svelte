@@ -32,8 +32,15 @@
     return lot ? `${lot.recipeName} (#${lot.id})` : id;
   }
 
+  $: selectedLot = lots.find((l) => String(l.id) === form.dyeLotId);
+  $: blockedByFixation = !editing && !!(selectedLot && selectedLot.fixationActive);
+
   async function save() {
     error = '';
+    if (blockedByFixation) {
+      error = '该染程固色静置进行中，未满静置窗禁止登记色牢度抽检';
+      return;
+    }
     try {
       const body = {
         dyeLotId: Number(form.dyeLotId),
@@ -85,7 +92,13 @@
 </script>
 
 <h1 class="page-title">色牢度抽检</h1>
-<p class="page-sub">耐洗 1–5 级；摩擦牢度须大于 0；记录检测温度。</p>
+<p class="page-sub">耐洗 1–5 级；摩擦牢度须大于 0；记录检测温度。染程固色静置进行中时禁止登记，结束静置后自动恢复。</p>
+
+{#if blockedByFixation}
+  <p class="err" style="margin-bottom:0.75rem;">
+    「{selectedLot?.recipeName}」固色静置中，未满窗禁止登记抽检；请先在固色静置工序结束该静置。
+  </p>
+{/if}
 
 <div class="panel" style="margin-bottom:1rem;">
   <div class="form-grid">
@@ -93,7 +106,9 @@
       >染程
       <select bind:value={form.dyeLotId}>
         {#each lots as lot}
-          <option value={String(lot.id)}>{lot.recipeName} · {lot.fabricKg}kg</option>
+          <option value={String(lot.id)}
+            >{lot.recipeName} · {lot.fabricKg}kg{lot.fixationActive ? ' · 静置中（禁抽检）' : ''}</option
+          >
         {/each}
       </select>
     </label>
@@ -104,7 +119,7 @@
     <label>备注 <input bind:value={form.notes} /></label>
   </div>
   <div class="toolbar">
-    <button class="btn" type="button" on:click={save}>{editing ? '保存修改' : '登记抽检'}</button>
+    <button class="btn" type="button" disabled={blockedByFixation} on:click={save}>{editing ? '保存修改' : '登记抽检'}</button>
     {#if editing}
       <button class="btn ghost" type="button" on:click={() => (editing = null)}>取消</button>
     {/if}

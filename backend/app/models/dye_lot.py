@@ -9,6 +9,8 @@ from app.database import Base
 if TYPE_CHECKING:
     from app.models.vat import Vat
     from app.models.fastness_check import FastnessCheck
+    from app.models.fixation_window import FixationWindow
+    from app.models.fabric_weight import FabricWeightRecord
 
 
 class DyeLot(Base):
@@ -24,4 +26,10 @@ class DyeLot(Base):
     vat: Mapped["Vat"] = relationship("Vat", back_populates="dye_lots")
     fastness_checks: Mapped[List["FastnessCheck"]] = relationship(
         "FastnessCheck", back_populates="dye_lot", cascade="all, delete-orphan"
+    )
+    fixation_windows: Mapped[List["FixationWindow"]] = relationship(
+        "FixationWindow", back_populates="dye_lot", cascade="all, delete-orphan"
+    )
+    fabric_weights: Mapped[List["FabricWeightRecord"]] = relationship(
+        "FabricWeightRecord", back_populates="dye_lot", cascade="all, delete-orphan"
     )

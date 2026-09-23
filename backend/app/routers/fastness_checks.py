@@ -9,6 +9,7 @@ from app.models.dye_lot import DyeLot
 from app.models.fastness_check import FastnessCheck
 from app.models.user import User
 from app.schemas.fastness_check import FastnessCheckCreate, FastnessCheckUpdate, FastnessCheckOut
+from app.services.fixation import get_active_window
 
 router = APIRouter(prefix="/api/fastness-checks", tags=["fastness-checks"])
 
@@ -34,6 +35,12 @@ def create_check(
     lot = db.query(DyeLot).filter(DyeLot.id == payload.dye_lot_id).first()
     if not lot:
         raise HTTPException(status_code=400, detail="染程不存在")
+    # 拦截与静置页"是否进行中"判定共用 get_active_window 同一查询
+    if get_active_window(db, payload.dye_lot_id):
+        raise HTTPException(
+            status_code=409,
+            detail="该染程固色静置进行中，未满静置窗禁止登记色牢度抽检",
+        )
     item = FastnessCheck(
         dye_lot_id=payload.dye_lot_id,
         checked_at=payload.checked_at,

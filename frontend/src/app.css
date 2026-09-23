@@ -156,6 +156,19 @@ textarea:focus {
   font-size: 0.8rem;
 }
 
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+}
+
+.panel-title {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0 0 0.75rem;
+  letter-spacing: 0.03em;
+}
+
 .err {
   color: var(--danger);
   font-size: 0.85rem;
@@ -208,6 +221,16 @@ th {
 .badge.drain {
   color: var(--warn);
   border-color: rgba(224, 168, 74, 0.45);
+}
+
+.badge.fixation {
+  color: #8fd6ff;
+  border-color: rgba(100, 180, 255, 0.5);
+  background: rgba(100, 180, 255, 0.12);
+}
+
+.badge.muted {
+  color: var(--indigo-mist);
 }
 
 .toolbar {

@@ -1,6 +1,6 @@
 # LoomLot-01 · 染坊缸染与色牢度抽检
 
-靛蓝染坊台：按 **染坊 → 染缸 → 染程 → 色牢度** 工序推进，聚焦缸染调度与抽检，不是库存出入库系统。
+靛蓝染坊台：按 **染坊 → 染缸 → 染程 → 固色静置 → 色牢度** 工序推进，聚焦缸染调度与抽检，不是库存出入库系统。
 
 ## 技术栈
 
@@ -49,14 +49,21 @@ docker compose down
 
 1. **DyeHouse** — `name`, `waterNote`, `notes`
 2. **Vat** — `dyeHouseId`, `vatCode`, `fiberType`, `capacityL`, `status` ∈ `ready|dyeing|drain`
-3. **DyeLot** — `vatId`, `recipeName`, `fabricKg`, `startedAt`, `operatorName`
-4. **FastnessCheck** — `dyeLotId`, `checkedAt`, `washFastness`(1–5), `rubFastness`(>0), `tempC`, `notes`
+3. **DyeLot** — `vatId`, `recipeName`, `fabricKg`, `startedAt`, `operatorName`；输出附带 `fixationActive`（是否静置中）
+4. **FixationWindow（固色静置窗）** — `dyeLotId`, `startAt`, `plannedEndAt`, `actualEndAt`（可空）, `dutyOfficer`；`actualEndAt` 为空即进行中
+5. **FabricWeightRecord（布重千克记录）** — `dyeLotId`, `weighedAt`, `weightKg`, `recorderName`, `notes`，用于静置结束前对账
+6. **FastnessCheck** — `dyeLotId`, `checkedAt`, `washFastness`(1–5), `rubFastness`(>0), `tempC`, `notes`
 
 ### 规则
 
 - 仅当染缸状态为 `ready` 或 `dyeing` 时可新建染程，否则 409
 - 新建染程后，染缸状态自动设为 `dyeing`
 - 可选接口：`POST /api/vats/{id}/drain` 将染缸置为 `drain`
+- 固色静置窗挂在染程上：`plannedEndAt` 必须晚于 `startAt`（否则 400）
+- 同一染程同时只允许一条未结束（`actualEndAt` 为空）的静置，重复新开 409（应用层校验 + 数据库部分唯一索引双保险）
+- 排液（`drain`）缸上的染程禁止新开静置，冲突 409
+- **染程存在进行中静置时，禁止新建色牢度抽检，返回 409 中文提示；静置结束后自动恢复。** 拦截与各处"是否静置中"判定共用同一查询（`app/services/fixation.py::get_active_window`）
+- 结束静置（`POST /api/fixation-windows/{id}/finish`）：写入 `actualEndAt`，不得早于 `startAt`（否则 400）；并在**同一事务**内要求该染程至少已有一条布重千克记录可对账，否则 400
 
 ## 主要 API
 
@@ -64,8 +71,10 @@ docker compose down
 - `GET /api/auth/me`
 - `GET/POST/PUT/DELETE /api/dye-houses`
 - `GET/POST/PUT/DELETE /api/vats` · `POST /api/vats/{id}/drain`
-- `GET/POST/PUT/DELETE /api/dye-lots`
-- `GET/POST/PUT/DELETE /api/fastness-checks`
+- `GET/POST/PUT/DELETE /api/dye-lots`（输出含 `fixationActive`）
+- `GET/POST /api/fixation-windows`（支持 `?dyeLotId=&activeOnly=` 过滤）· `POST /api/fixation-windows/{id}/finish`
+- `GET/POST /api/fabric-weights`（布重千克对账记录）
+- `GET/POST/PUT/DELETE /api/fastness-checks`（进行中静置时 POST 返回 409）
 - `GET /api/dashboard/stats`
 
 除登录外需 `Authorization: Bearer <token>`。字段对外为 camelCase。

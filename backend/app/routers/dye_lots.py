@@ -10,10 +10,18 @@ from app.models.dye_lot import DyeLot
 from app.models.user import User
 from app.models.vat import Vat
 from app.schemas.dye_lot import DyeLotCreate, DyeLotUpdate, DyeLotOut
+from app.services.fixation import get_active_window
 
 router = APIRouter(prefix="/api/dye-lots", tags=["dye-lots"])
 
 ALLOWED_VAT_STATUSES = {"ready", "dyeing"}
+
+
+def _to_out(db: Session, lot: DyeLot) -> DyeLotOut:
+    # 与色牢度拦截共用同一"进行中静置"查询
+    out = DyeLotOut.model_validate(lot)
+    out.fixation_active = get_active_window(db, lot.id) is not None
+    return out
 
 
 @router.get("", response_model=List[DyeLotOut])
@@ -25,7 +33,8 @@ def list_dye_lots(
     q = db.query(DyeLot)
     if vat_id is not None:
         q = q.filter(DyeLot.vat_id == vat_id)
-    return q.order_by(DyeLot.id.desc()).all()
+    lots = q.order_by(DyeLot.id.desc()).all()
+    return [_to_out(db, lot) for lot in lots]
 
 
 @router.post("", response_model=DyeLotOut, status_code=status.HTTP_201_CREATED)
@@ -53,7 +62,7 @@ def create_dye_lot(
     db.add(item)
     db.commit()
     db.refresh(item)
-    return item
+    return _to_out(db, item)
 
 
 @router.get("/{lot_id}", response_model=DyeLotOut)
@@ -65,7 +74,7 @@ def get_dye_lot(
     item = db.query(DyeLot).filter(DyeLot.id == lot_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="染程不存在")
-    return item
+    return _to_out(db, item)
 
 
 @router.put("/{lot_id}", response_model=DyeLotOut)
@@ -93,7 +102,7 @@ def update_dye_lot(
         setattr(item, k, v)
     db.commit()
     db.refresh(item)
-    return item
+    return _to_out(db, item)
 
 
 @router.delete("/{lot_id}", status_code=status.HTTP_204_NO_CONTENT)

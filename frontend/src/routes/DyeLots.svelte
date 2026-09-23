@@ -86,7 +86,7 @@
 </script>
 
 <h1 class="page-title">染程</h1>
-<p class="page-sub">仅 ready / dyeing 染缸可开缸；提交后染缸自动变为染色中。</p>
+<p class="page-sub">仅 ready / dyeing 染缸可开缸；提交后染缸自动变为染色中。染程处于固色静置时，该行显示「静置中」。</p>
 
 <div class="panel" style="margin-bottom:1rem;">
   <div class="form-grid">
@@ -124,6 +124,7 @@
         <th>布料 kg</th>
         <th>开始</th>
         <th>操作员</th>
+        <th>固色静置</th>
         <th></th>
       </tr>
     </thead>
@@ -136,6 +137,13 @@
           <td>{row.fabricKg}</td>
           <td>{new Date(row.startedAt).toLocaleString()}</td>
           <td>{row.operatorName}</td>
+          <td>
+            {#if row.fixationActive}
+              <span class="badge fixation">静置中</span>
+            {:else}
+              <span class="badge muted">—</span>
+            {/if}
+          </td>
           <td class="row-actions">
             <button class="btn ghost small" type="button" on:click={() => startEdit(row)}>编辑</button>
             <button class="btn danger small" type="button" on:click={() => remove(row.id)}>删除</button>
